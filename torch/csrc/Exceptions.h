@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <string>
+#include <system_error>
 #include <memory>
 #include <queue>
 #include <mutex>
@@ -14,6 +15,10 @@
 #include <torch/csrc/WindowsTorchApiMacro.h>
 #include <c10/util/StringUtil.h>
 #include <ATen/detail/FunctionTraits.h>
+
+#if defined(USE_DISTRIBUTED) && defined(USE_C10D)
+#include <torch/csrc/distributed/c10d/exception.h>
+#endif
 
 static inline void PyErr_SetString(PyObject* type, const std::string& message) {
   PyErr_SetString(type, message.c_str());
@@ -83,14 +88,31 @@ static inline void PyErr_SetString(PyObject* type, const std::string& message) {
       PyErr_SetString(PyExc_RuntimeError, torch::processErrorMsg(msg)); \
       retstmnt;                                                      \
     }                                                                \
-    catch (torch::PyTorchError & e) {                                \
+    catch (torch::PyTorchError& e) {                                 \
       auto msg = torch::processErrorMsg(e.what());                   \
       PyErr_SetString(e.python_type(), msg);                         \
       retstmnt;                                                      \
+    }                                                                \
+    catch (const std::system_error& e) {                             \
+      errno = e.code().value();                                      \
+      PyErr_SetFromErrno(PyExc_OSError);                             \
+      retstmnt;                                                      \
     }
+
+#if defined(USE_DISTRIBUTED) && defined(USE_C10D)
+#define CATCH_C10D_ERRORS(retstmnt)                                  \
+    catch (const c10d::TimeoutError& e) {                            \
+      auto msg = torch::processErrorMsg(e.what());                   \
+      PyErr_SetString(PyExc_TimeoutError, msg);                      \
+      retstmnt;                                                      \
+    }
+#else
+#define CATCH_C10D_ERRORS(retstmnt)
+#endif
 
 #define CATCH_ALL_ERRORS(retstmnt)                                   \
     CATCH_TH_ERRORS(retstmnt)                                        \
+    CATCH_C10D_ERRORS(retstmnt)                                      \
     catch (const std::exception& e) {                                \
       auto msg = torch::processErrorMsg(e.what());                   \
       PyErr_SetString(PyExc_RuntimeError, msg);                      \
