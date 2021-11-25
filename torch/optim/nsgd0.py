@@ -85,13 +85,15 @@ class NSGD(Optimizer):
         The Nesterov version is analogously modified.
     """
 
-    def __init__(self, params, lr=required, col=0, momentum=0, dampening=0,
+    def __init__(self, params, lr=required, irho=required, col=0, momentum=0, dampening=0,
                  weight_decay=0, nesterov=False, *, maximize=False):
         if lr is not required and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
+        if irho is not required and irho < 0.0:
+            raise ValueError("Invalid learning rate: {}".format(irho))
         if momentum < 0.0:
             raise ValueError("Invalid momentum value: {}".format(momentum))
-        if weight_decay <= 0.0:
+        if weight_decay < 0.0:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
 
         defaults = dict(lr=lr, irho=irho, col=col, momentum=momentum, dampening=dampening,
@@ -127,14 +129,14 @@ class NSGD(Optimizer):
             U = U[:, ix]
             S = torch.sqrt(torch.diag(1./S[ix]))
             self.Z = torch.mm(h.t(), torch.mm(U, S))
-            self.Q = group['weight_decay']**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + group['weight_decay'] * torch.mm(self.Z.t(), self.Z)))
+            self.Q = group['irho']**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + group['irho'] * torch.mm(self.Z.t(), self.Z)))
 
     def prestep(self):
         """Compute the scaled gradient
         """
         for group in self.param_groups:
             g=torch.cat([p.grad.view(-1) for p in group['params']])
-            v_new = group['weight_decay']*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
+            v_new = group['irho']*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
             ls=0
             for p in group['params']:
                 vp=v_new[ls:ls+torch.numel(p)].view(p.shape)
