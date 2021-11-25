@@ -94,7 +94,7 @@ class NSGD(Optimizer):
         if weight_decay <= 0.0:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
 
-        defaults = dict(lr=lr, irho=irho, col=col, momentum=momentum, dampening=dampening,
+        defaults = dict(lr=lr, col=col, momentum=momentum, dampening=dampening,
                         weight_decay=weight_decay, nesterov=nesterov, maximize=maximize)
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
