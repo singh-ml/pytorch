@@ -127,14 +127,14 @@ class NSGD(Optimizer):
             U = U[:, ix]
             S = torch.sqrt(torch.diag(1./S[ix]))
             self.Z = torch.mm(h.t(), torch.mm(U, S))
-            self.Q = group['weight_decay']**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + group['weight_decay'] * torch.mm(self.Z.t(), self.Z)))
+            self.Q = (1.0/group['weight_decay'])**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + (1.0/group['weight_decay']) * torch.mm(self.Z.t(), self.Z)))
 
     def prestep(self):
         """Compute the scaled gradient
         """
         for group in self.param_groups:
             g=torch.cat([p.grad.view(-1) for p in group['params']])
-            v_new = group['weight_decay']*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
+            v_new = (1.0/group['weight_decay'])*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
             ls=0
             for p in group['params']:
                 vp=v_new[ls:ls+torch.numel(p)].view(p.shape)
