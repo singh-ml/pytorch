@@ -113,20 +113,20 @@ class NSGD(Optimizer):
             col = group['col']
             if col < 0:
                 col = np.int32(np.ceil(np.log2(g.shape[0])))
-            h = torch.zeros(col, g.shape[0]).to(device)
+            self.Z = torch.zeros(col, g.shape[0]).to(device)
             idx = torch.randperm(g.shape[0])[:col]
             for j in range(col):
                 if j == col-1:
-                    h[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
+                    self.Z[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
                 else:
-                    h[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
-            M = h[:,idx]
+                    self.Z[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
+            M = self.Z[:,idx]
             rnk = torch.matrix_rank(M)
             U, S, V = torch.svd(M)
             ix = range(0, rnk)
             U = U[:, ix]
             S = torch.sqrt(torch.diag(1./S[ix]))
-            self.Z = torch.mm(h.t(), torch.mm(U, S))
+            self.Z = torch.mm(self.Z.t(), torch.mm(U, S))
             self.Q = (1.0/group['weight_decay'])**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + (1.0/group['weight_decay']) * torch.mm(self.Z.t(), self.Z)))
 
     def prestep(self):
