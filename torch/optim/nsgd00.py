@@ -3,7 +3,7 @@ from . import _functional as F
 from .optimizer import Optimizer, required
 import numpy as np
 
-class NSGD(Optimizer):
+class NSGD00(Optimizer):
     r"""Implements nystrom approximated curvation based stochastic gradient descent (optionally with momentum).
 
     .. math::
