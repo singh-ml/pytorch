@@ -87,6 +87,7 @@ class NSGD(Optimizer):
 
     def __init__(self, params, lr=required, irho=required, col=0, momentum=0, dampening=0,
                  weight_decay=0, nesterov=False, *, maximize=False):
+        print('I am called')
         if lr is not required and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if irho is not required and irho < 0.0:
