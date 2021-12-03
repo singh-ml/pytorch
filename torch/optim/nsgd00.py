@@ -85,18 +85,16 @@ class NSGD(Optimizer):
         The Nesterov version is analogously modified.
     """
 
-    def __init__(self, params, lr=required, irho=required, col=0, momentum=0, dampening=0,
+    def __init__(self, params, lr=required, col=0, momentum=0, dampening=0,
                  weight_decay=0, nesterov=False, *, maximize=False):
         if lr is not required and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
-        if irho is not required and irho < 0.0:
-            raise ValueError("Invalid learning rate: {}".format(irho))
         if momentum < 0.0:
             raise ValueError("Invalid momentum value: {}".format(momentum))
-        if weight_decay < 0.0:
+        if weight_decay <= 0.0:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
 
-        defaults = dict(lr=lr, irho=irho, col=col, momentum=momentum, dampening=dampening,
+        defaults = dict(lr=lr, col=col, momentum=momentum, dampening=dampening,
                         weight_decay=weight_decay, nesterov=nesterov, maximize=maximize)
         if nesterov and (momentum <= 0 or dampening != 0):
             raise ValueError("Nesterov momentum requires a momentum and zero dampening")
@@ -115,28 +113,28 @@ class NSGD(Optimizer):
             col = group['col']
             if col < 0:
                 col = np.int32(np.ceil(np.log2(g.shape[0])))
-            h = torch.zeros(col, g.shape[0]).to(device)
+            self.Z = torch.zeros(col, g.shape[0]).to(device)
             idx = torch.randperm(g.shape[0])[:col]
             for j in range(col):
                 if j == col-1:
-                    h[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
+                    self.Z[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
                 else:
-                    h[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
-            M = h[:,idx]
+                    self.Z[j] = torch.cat([hi.reshape(-1) for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
+            M = self.Z[:,idx]
             rnk = torch.matrix_rank(M)
             U, S, V = torch.svd(M)
             ix = range(0, rnk)
             U = U[:, ix]
             S = torch.sqrt(torch.diag(1./S[ix]))
-            self.Z = torch.mm(h.t(), torch.mm(U, S))
-            self.Q = group['irho']**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + group['irho'] * torch.mm(self.Z.t(), self.Z)))
+            self.Z = torch.mm(self.Z.t(), torch.mm(U, S))
+            self.Q = (1.0/group['weight_decay'])**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + (1.0/group['weight_decay']) * torch.mm(self.Z.t(), self.Z)))
 
     def prestep(self):
         """Compute the scaled gradient
         """
         for group in self.param_groups:
             g=torch.cat([p.grad.view(-1) for p in group['params']])
-            v_new = group['irho']*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
+            v_new = (1.0/group['weight_decay'])*g.view(-1,1)-torch.mm(self.Q, torch.mm(self.Z.t(), g.view(-1,1)))
             ls=0
             for p in group['params']:
                 vp=v_new[ls:ls+torch.numel(p)].view(p.shape)
