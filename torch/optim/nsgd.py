@@ -110,14 +110,14 @@ class NSGD(Optimizer):
 
     def nyscurve(self, gradloader, device):
         """Nystrom-Approximated Curvature Information"""
-        col = group['col']
-        p = torch.cat([pi.view(-1) for pi in group['params']])
-        if col < 0:
-            col = np.int32(np.ceil(np.log2(p.shape[0])))
-        h = torch.zeros(col, p.shape[0]).to(device)
-        idx = torch.randperm(p.shape[0])[:col]
-        p = p[idx]
         for group in self.param_groups:
+            col = group['col']
+            p = torch.cat([pi.view(-1) for pi in group['params']])
+            if col < 0:
+                col = np.int32(np.ceil(np.log2(p.shape[0])))
+            h = torch.zeros(col, p.shape[0]).to(device)
+            idx = torch.randperm(p.shape[0])[:col]
+            p = p[idx]
             for batch_idx, (inputs, targets) in enumerate(gradloader):
                 inputs, targets = inputs.cuda(args.gpu), targets.cuda(args.gpu)
                 #optimizer.zero_grad()
