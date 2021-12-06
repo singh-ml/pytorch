@@ -108,7 +108,37 @@ class NSGD(Optimizer):
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
-    def nyscurve(self, full_loss, device):
+    def nyscurve(self, gradloader, device):
+        """Nystrom-Approximated Curvature Information"""
+        col = group['col']
+        p = torch.cat([pi.view(-1) for pi in group['params']])
+        if col < 0:
+            col = np.int32(np.ceil(np.log2(p.shape[0])))
+        h = torch.zeros(col, p.shape[0]).to(device)
+        idx = torch.randperm(p.shape[0])[:col]
+        p = p[idx]
+        for group in self.param_groups:
+            for batch_idx, (inputs, targets) in enumerate(gradloader):
+                inputs, targets = inputs.cuda(args.gpu), targets.cuda(args.gpu)
+                #optimizer.zero_grad()
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+                g = torch.autograd.grad(loss, p, create_graph=True, retain_graph=True)
+                for j in range(col):
+                    if j == col-1:
+                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[j], group['params'], retain_graph=False)])
+                    else:
+                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[j], group['params'], retain_graph=True)])
+            M = h[:,idx]
+            rnk = torch.matrix_rank(M)
+            U, S, V = torch.svd(M)
+            ix = range(0, rnk)
+            U = U[:, ix]
+            S = torch.sqrt(torch.diag(1./S[ix]))
+            self.Z = torch.mm(h.t(), torch.mm(U, S))
+            self.Q = group['irho']**2 * torch.mm(self.Z, torch.inverse(torch.eye(rnk).to(device) + group['irho'] * torch.mm(self.Z.t(), self.Z)))
+
+    def nyscurve1(self, full_loss, device):
         """Nystrom-Approximated Curvature Information"""
         for group in self.param_groups:
             g = torch.autograd.grad(full_loss, group['params'], create_graph=True, retain_graph=True)
