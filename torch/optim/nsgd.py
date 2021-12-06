@@ -108,7 +108,7 @@ class NSGD(Optimizer):
         for group in self.param_groups:
             group.setdefault('nesterov', False)
 
-    def nyscurve(self, gradloader, model, device):
+    def nyscurve(self, gradloader, model, criterion, device):
         """Nystrom-Approximated Curvature Information"""
         for group in self.param_groups:
             col = group['col']
