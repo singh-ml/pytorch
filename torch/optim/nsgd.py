@@ -117,18 +117,18 @@ class NSGD(Optimizer):
                 col = np.int32(np.ceil(np.log2(p.shape[0])))
             h = torch.zeros(col, p.shape[0]).to(device)
             idx = torch.randperm(p.shape[0])[:col]
-            p = p[idx]
             for batch_idx, (inputs, targets) in enumerate(gradloader):
                 inputs, targets = inputs.cuda(device), targets.cuda(device)
                 #optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
-                g = torch.autograd.grad(loss, p, create_graph=True, retain_graph=True)
+                g = torch.autograd.grad(loss, group['params'], create_graph=True, retain_graph=True)
+                g = torch.cat([gi.view(-1) for gi in g])
                 for j in range(col):
                     if j == col-1:
-                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[j], group['params'], retain_graph=False)])
+                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
                     else:
-                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[j], group['params'], retain_graph=True)])
+                        h[j] += torch.cat([hi.reshape(-1).item() for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
             M = h[:,idx]
             rnk = torch.matrix_rank(M)
             U, S, V = torch.svd(M)
