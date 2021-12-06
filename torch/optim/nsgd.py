@@ -129,6 +129,7 @@ class NSGD(Optimizer):
                         h[j] += torch.cat([hi.reshape(-1).data for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=False)])
                     else:
                         h[j] += torch.cat([hi.reshape(-1).data for hi in torch.autograd.grad(g[idx[j]], group['params'], retain_graph=True)])
+            h = h/len(gradloader)
             M = h[:,idx]
             rnk = torch.matrix_rank(M)
             U, S, V = torch.svd(M)
