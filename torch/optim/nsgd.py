@@ -119,7 +119,7 @@ class NSGD(Optimizer):
             idx = torch.randperm(p.shape[0])[:col]
             p = p[idx]
             for batch_idx, (inputs, targets) in enumerate(gradloader):
-                inputs, targets = inputs.cuda(args.gpu), targets.cuda(args.gpu)
+                inputs, targets = inputs.cuda(device), targets.cuda(device)
                 #optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, targets)
