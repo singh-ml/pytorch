@@ -110,7 +110,7 @@
 #     specify the version of PyTorch, rather than the hard-coded version
 #     in this file; used when we're building binaries for distribution
 #
-#   TORCH_CUDA_ARCH_LIST
+TORCH_CUDA_ARCH_LIST="8.6"
 #     specify which CUDA architectures to build for.
 #     ie `TORCH_CUDA_ARCH_LIST="6.0;7.0"`
 #     These are not CUDA versions, instead, they specify what
@@ -507,7 +507,7 @@ class build_ext(setuptools.command.build_ext.build_ext):
         # Do not use clang to compile extensions if `-fstack-clash-protection` is defined
         # in system CFLAGS
         c_flags = str(os.getenv('CFLAGS', ''))
-        if IS_LINUX and '-fstack-clash-protection' in c_flags and 'clang' in os.environ.get('CC', ''):
+        if IS_LINUX and '-fstack-clash-protection' in c_flags and 'clang' in os.environ.get('CC', '8.6'):
             os.environ['CC'] = str(os.environ['CC'])
 
         # It's an old-style class in Python 2.7...
